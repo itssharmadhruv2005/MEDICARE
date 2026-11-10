@@ -1,0 +1,134 @@
+import db from "../config/mysql.js";
+
+// ================= USERS =================
+
+// Get all users
+export const getAllUsers = (req, res) => {
+  const query = "SELECT id, name, email, gender, age, phone, address FROM users";
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+};
+
+// Delete user
+// export const deleteUser = (req, res) => {
+//   const { id } = req.params;
+//   const query = "DELETE FROM users WHERE id = ?";
+//   db.query(query, [id], (err, result) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     if (result.affectedRows === 0) return res.status(404).json({ error: "User not found" });
+//     res.json({ message: "User deleted successfully" });
+//   });
+// };
+export const deleteUser = (req, res) => {
+  const { id } = req.params;
+
+  // Delete cart entries for the user first
+  const deleteCartQuery = "DELETE FROM cart WHERE user_id = ?";
+  db.query(deleteCartQuery, [id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    // Now delete the user
+    const deleteUserQuery = "DELETE FROM users WHERE id = ?";
+    db.query(deleteUserQuery, [id], (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) return res.status(404).json({ error: "User not found" });
+      res.json({ message: "User and their cart items deleted successfully" });
+    });
+  });
+};
+
+
+
+// ================= PRODUCTS =================
+
+
+// Get all products
+export const getAllProducts = (req, res) => {
+  const query = "SELECT * FROM products";
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+};
+
+
+// Add product
+export const addProduct = (req, res) => {
+  const { name, description, price, stock, category, strength, expiry_date, rating } = req.body;
+  const image = req.file ? req.file.path : req.body.image;
+
+  if (!name || !price || !stock) {
+    return res.status(400).json({ error: "Name, price, and stock are required" });
+  }
+
+  const query = `
+    INSERT INTO products (name, description, price, stock, category, image, strength, expiry_date, rating, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+  `;
+
+  db.query(query, [name, description, price, stock, category, image, strength, expiry_date, rating], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: "Product added successfully", productId: result.insertId });
+  });
+};
+
+// Update product
+export const updateProduct = (req, res) => {
+  const { id } = req.params;
+  const { name, description, price, stock, category, strength, expiry_date, rating } = req.body;
+  const image = req.file ? req.file.path : req.body.image;
+
+  const query = `
+    UPDATE products 
+    SET name=?, description=?, price=?, stock=?, category=?, image=?, strength=?, expiry_date=?, rating=?, updated_at=NOW()
+    WHERE id=?
+  `;
+
+  db.query(query, [name, description, price, stock, category, image, strength, expiry_date, rating, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Product not found" });
+    res.json({ message: "Product updated successfully" });
+  });
+};
+
+// Delete product
+export const deleteProduct = (req, res) => {
+  const { id } = req.params;
+  const query = "DELETE FROM products WHERE id = ?";
+  db.query(query, [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Product not found" });
+    res.json({ message: "Product deleted successfully" });
+  });
+};
+
+// ================= ORDERS =================
+
+// Get all orders with user details
+export const getAllOrders = (req, res) => {
+  const query = `
+    SELECT o.*, u.name as userName, u.email as userEmail 
+    FROM orders o 
+    JOIN users u ON o.user_id = u.id 
+    ORDER BY o.created_at DESC
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+};
+
+// Update order status
+export const updateOrderStatus = (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const query = "UPDATE orders SET status = ? WHERE id = ?";
+  db.query(query, [status, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Order not found" });
+    res.json({ message: "Order status updated successfully" });
+  });
+};
